@@ -1,0 +1,44 @@
+# PyInstaller
+/build/
+/dist/
+dist_pyinstaller/
+build_pyinstaller/
+*.spec
+pxgate.spec
+
+# Nuitka build output
+dist_nuitka/
+
+# Distribution files
+*.dmg
+*.zip
+pxgate_v*_macOS/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS
+.DS_Store
+
+# Temporary files from build script
+version_info.py
+
+# Logs
+/logs/
+
+# IDE files
+.idea/
+
+# User Data / State files (선택적)
+pxgate_data.json
+/.vs
+pxgate.lock
+
+.mdc
+/.cursor
+/.kiro
+/.vscode
+*repomix*
