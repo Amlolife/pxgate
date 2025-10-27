@@ -51,6 +51,22 @@ a = Analysis(
     optimize=0,
 )
 
+# Manually filter out problematic Qt frameworks from binaries
+qt_frameworks_to_exclude = [
+    'Qt3DAnimation', 'Qt3DCore', 'Qt3DExtras', 'Qt3DInput', 'Qt3DLogic',
+    'Qt3DRender', 'QtBluetooth', 'QtCharts', 'QtDataVisualization',
+    'QtNetworkAuth', 'QtNfc', 'QtSensors', 'QtSerialBus', 'QtSerialPort',
+    'QtWebEngineCore', 'QtWebEngineWidgets', 'QtWebSockets', 'QtWebChannel',
+    'QtWebEngineQuick'
+]
+
+filtered_binaries = []
+for b in a.binaries:
+    # b is a tuple, the first element is the destination path in the bundle
+    # We check if any of the exclude keywords are in the framework path
+    if not any(f + '.framework' in b[0] for f in qt_frameworks_to_exclude):
+        filtered_binaries.append(b)
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -68,7 +84,7 @@ exe = EXE(
 
 coll = COLLECT(
     exe,
-    a.binaries,
+    filtered_binaries,  # Use the filtered list of binaries
     a.datas,
     strip=False,
     upx=True,
