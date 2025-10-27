@@ -45,11 +45,11 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='Pxgate',
-    debug=False,
+    debug=True,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=True,
     icon='app_icon.ico' if sys.platform == 'win32' else None
 )
 
