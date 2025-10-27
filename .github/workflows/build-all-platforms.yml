@@ -2,8 +2,8 @@ name: Build All Platforms
 
 on:
   push:
-    tags:
-      - 'v*'  # Triggers on version tags like v1.0.0
+    branches:
+      - 'main'  # Triggers on every push to the main branch
   workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 jobs:
