@@ -1,0 +1,181 @@
+name: Build All Platforms
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build Windows executable
+        run: |
+          pyinstaller pxgate.spec --noconfirm --clean
+      
+      - name: Create Windows archive
+        run: |
+          Compress-Archive -Path dist\pxgate -DestinationPath Pxgate-Windows.zip
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pxgate-Windows
+          path: Pxgate-Windows.zip
+          retention-days: 30
+
+  build-macos-intel:
+    name: Build macOS Intel
+    runs-on: macos-13  # Intel runner
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build macOS Intel app
+        run: |
+          pyinstaller pxgate-mac.spec --target-arch x86_64 --noconfirm --clean
+      
+      - name: Create macOS Intel archive
+        run: |
+          cd dist
+          zip -r ../Pxgate-macOS-Intel.zip Pxgate.app
+          cd ..
+      
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pxgate-macOS-Intel
+          path: Pxgate-macOS-Intel.zip
+          retention-days: 30
+
+  build-macos-arm:
+    name: Build macOS Apple Silicon
+    runs-on: macos-14  # Apple Silicon runner
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build macOS ARM app
+        run: |
+          pyinstaller pxgate-mac.spec --target-arch arm64 --noconfirm --clean
+      
+      - name: Create macOS ARM archive
+        run: |
+          cd dist
+          zip -r ../Pxgate-macOS-AppleSilicon.zip Pxgate.app
+          cd ..
+      
+      - name: Upload macOS ARM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pxgate-macOS-AppleSilicon
+          path: Pxgate-macOS-AppleSilicon.zip
+          retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-windows, build-macos-intel, build-macos-arm]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/Pxgate-Windows/Pxgate-Windows.zip
+            artifacts/Pxgate-macOS-Intel/Pxgate-macOS-Intel.zip
+            artifacts/Pxgate-macOS-AppleSilicon/Pxgate-macOS-AppleSilicon.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 🎉 Pxgate Release
+            
+            ### Downloads
+            
+            Choose the appropriate version for your system:
+            
+            - **Windows**: `Pxgate-Windows.zip`
+            - **macOS Intel**: `Pxgate-macOS-Intel.zip` (for Intel-based Macs)
+            - **macOS Apple Silicon**: `Pxgate-macOS-AppleSilicon.zip` (for M1/M2/M3 Macs)
+            
+            ### Installation
+            
+            #### Windows
+            1. Download `Pxgate-Windows.zip`
+            2. Extract the zip file
+            3. Run `pxgate.exe`
+            
+            #### macOS
+            1. Download the appropriate version for your Mac
+            2. Extract the zip file
+            3. Drag `Pxgate.app` to your Applications folder
+            4. **First launch**: Right-click → Open (to bypass Gatekeeper warning)
+            5. The app will run normally from then on
+            
+            ### System Requirements
+            
+            - **Windows**: Windows 10 or later
+            - **macOS Intel**: macOS 10.15 Catalina or later
+            - **macOS Apple Silicon**: macOS 11.0 Big Sur or later
+            
+            ### Notes
+            
+            - No Python installation required
+            - All dependencies are bundled
+            - First-time macOS users: Right-click → Open to bypass security warning
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

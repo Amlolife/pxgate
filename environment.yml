@@ -7,7 +7,7 @@ dependencies:
   - piexif
   - psutil
   - pillow
-  - pyside6
+  - pyside6=6.5.*
   - pillow_heif
   - rawpy
   - pip

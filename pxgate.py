@@ -46,6 +46,9 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox,
                               QVBoxLayout, QWidget, QToolTip, QInputDialog, QLineEdit, 
                               QSpinBox, QProgressDialog, QLayout)
 
+# AI features disabled to leave software in basic state
+ANALYSIS_AVAILABLE = False
+
 
 # 로깅 시스템 설정
 def setup_logger():
@@ -79,12 +82,12 @@ def setup_logger():
                 file_path = log_dir / filename
                 try:
                     os.remove(file_path)
-                    logging.info(f"오래된 로그 파일 삭제: {filename}")
+                    logging.info(f"Deleted old log file: {filename}")
                 except OSError as e:
-                    logging.warning(f"로그 파일 삭제 실패: {filename}, 오류: {e}")
+                    logging.warning(f"Failed to delete log file: {filename}, error: {e}")
     except Exception as e:
         # 이 과정에서 오류가 발생해도 로깅 시스템의 핵심 기능은 계속되어야 함
-        logging.warning(f"오래된 로그 파일 정리 중 오류 발생: {e}")
+        logging.warning(f"Error while cleaning old log files: {e}")
 
     # 현재 날짜로 로그 파일명 생성
     log_filename = datetime.now().strftime("pxgate_%Y%m%d.log")
@@ -114,8 +117,42 @@ def setup_logger():
     console_handler.setFormatter(logging.Formatter(log_format, date_format))
     logger.addHandler(console_handler)
     
-    # 버전 및 시작 메시지 로깅
-    logging.info("pxgate 시작 (버전: 25.08.06)")
+    # Version and startup message
+    logging.info("pxgate started (version: 25.08.06)")
+
+    # Add a lightweight filter to replace common Korean substrings in logs with English
+    class _KoToEnFilter(logging.Filter):
+        _MAP = {
+            "잠금 파일 위치": "Lock file path",
+            "앱이 이미 실행 중이거나 잠금을 획득할 수 없습니다": "App already running or cannot acquire lock",
+            "Windows API로 감지된 DPI 배율": "Detected DPI scale via Windows API",
+            "Qt API로 감지된 DPI 배율": "Detected DPI scale via Qt API",
+            "UI 스케일 초기화 완료": "UI scale initialized",
+            "시스템 사양": "System specs",
+            "성능 프로필": "Performance profile",
+            "활성화": "active",
+            "사용자가 성능 프로필을 수동으로": "User manually changed performance profile to",
+            "제목 표시줄 다크 테마 적용 실패": "Failed to apply dark title bar",
+            "오류": "Error",
+            "경고": "Warning",
+            "초기화": "initialized",
+            "완료": "completed",
+            "시작됨": "started",
+        }
+        def filter(self, record: logging.LogRecord) -> bool:
+            try:
+                msg = record.getMessage()
+                for ko, en in self._MAP.items():
+                    if ko in msg:
+                        msg = msg.replace(ko, en)
+                record.msg = msg
+                record.args = ()
+            except Exception:
+                pass
+            return True
+
+    file_handler.addFilter(_KoToEnFilter())
+    console_handler.addFilter(_KoToEnFilter())
     
     return logger
 # 로거 초기화
@@ -484,19 +521,19 @@ class UIScaleManager:
                 # 보통 두 값은 같으므로 하나만 사용합니다.
                 current_dpi = ctypes.windll.gdi32.GetDeviceCaps(hdc, 88)
                 user32.ReleaseDC(0, hdc)
-                # Windows의 표준 DPI는 96입니다.
+                # Windows standard DPI is 96.
                 scale = current_dpi / 96.0
-                logging.info(f"Windows API로 감지된 DPI 배율: {scale:.2f} ({current_dpi} DPI)")
+                logging.info(f"Detected DPI scale via Windows API: {scale:.2f} ({current_dpi} DPI)")
                 return scale
             except Exception as e:
-                logging.error(f"Windows DPI 배율 감지 실패: {e}. 기본값 1.0 사용.")
+                logging.error(f"Failed to detect Windows DPI scale: {e}. Using default 1.0.")
                 return 1.0
         else:
             # Windows가 아닌 OS에서는 devicePixelRatio가 정상적으로 동작할 가능성이 높습니다.
             screen = QGuiApplication.primaryScreen()
             if screen:
                 scale = screen.devicePixelRatio()
-                logging.info(f"Qt API로 감지된 DPI 배율: {scale:.2f}")
+                logging.info(f"Detected DPI scale via Qt API: {scale:.2f}")
                 return scale
             return 1.0
 
@@ -537,20 +574,20 @@ class UIScaleManager:
 
             dpi_scale = cls._get_system_dpi_scale()
             if dpi_scale >= 2.0 and base_settings["font_size"] > 9:
-                logging.info(f"시스템 DPI 배율 {dpi_scale*100:.0f}% 감지. 폰트 크기 -1 적용.")
+                logging.info(f"Detected DPI scale {dpi_scale*100:.0f}%: decreasing base fonts (-1).")
                 base_settings["font_size"] -= 1; base_settings["zoom_grid_font_size"] -= 1; base_settings["filename_font_size"] -= 1
             elif dpi_scale == 1.0 and base_settings["font_size"] < 11:
-                logging.info(f"시스템 DPI 배율 100% 감지. 폰트 크기 +1 적용.")
+                logging.info("Detected DPI scale 100%: increasing base fonts (+2).")
                 base_settings["font_size"] += 2; base_settings["zoom_grid_font_size"] += 2; base_settings["filename_font_size"] += 2
 
             # 해상도 기반 너비 조정 (폰트 크기 조정 후)
             cls._update_settings_for_horizontal_resolution(base_settings, width, height)
             
             cls._current_settings = base_settings
-            logging.info(f"UI 스케일 초기화 완료: 해상도={width}x{height}, 최종 폰트 크기={base_settings['font_size']}")
+            logging.info(f"UI scale initialized: resolution={width}x{height}, final font size={base_settings['font_size']}")
 
         except Exception as e:
-            logging.error(f"UIScaleManager 초기화 중 오류: {e}. 기본 UI 스케일을 사용합니다.")
+            logging.error(f"Error during UIScaleManager initialization: {e}. Using default UI scale.")
             cls._current_settings = cls.NORMAL_SETTINGS.copy()
 
     @classmethod
@@ -1241,45 +1278,34 @@ class HardwareProfileManager:
         return False
 
 class LanguageManager:
-    """언어 설정 및 번역을 관리하는 클래스"""
+    """Language manager: English-only UI. Korean keys map to English text."""
     
-    # 사용 가능한 언어
     LANGUAGES = {
         "en": "English",
-        "ko": "한국어"
     }
     
-    # 번역 데이터
     _translations = {
-        "en": {},  # 영어 번역 데이터는 아래에서 초기화
-        "ko": {}   # 한국어는 기본값이므로 필요 없음
+        "en": {},
     }
     
-    _current_language = "en"  # 기본 언어
-    _language_change_callbacks = []  # 언어 변경 시 호출할 콜백 함수 목록
+    _current_language = "en"
+    _language_change_callbacks = []
     
     @classmethod
-    def initialize_translations(cls, translations_data):
-        """번역 데이터 초기화"""
-        # 영어는 key-value 반대로 저장 (한국어->영어 매핑)
-        for ko_text, en_text in translations_data.items():
-            cls._translations["en"][ko_text] = en_text
+    def initialize_translations(cls, translations_en: dict):
+        """Initialize English translations from Korean keys."""
+        cls._translations["en"] = dict(translations_en or {})
     
     @classmethod
-    def translate(cls, text_id):
-        """텍스트 ID에 해당하는 번역 반환"""
-        if cls._current_language == "ko":
-            return text_id  # 한국어는 원래 ID 그대로 사용
-        
-        translations = cls._translations.get(cls._current_language, {})
-        return translations.get(text_id, text_id)  # 번역 없으면 원본 반환
+    def translate(cls, text_id: str) -> str:
+        """Return English translation or original key if missing."""
+        return cls._translations["en"].get(text_id, text_id)
     
     @classmethod
     def set_language(cls, language_code):
-        """언어 설정 변경"""
-        if language_code in cls.LANGUAGES:
-            cls._current_language = language_code
-            # 언어 변경 시 콜백 함수 호출
+        """Keep English only; return True for 'en'."""
+        if language_code == "en":
+            cls._current_language = "en"
             for callback in cls._language_change_callbacks:
                 callback()
             return True
@@ -4090,25 +4116,27 @@ class ThumbnailPanel(QWidget):
     
     def update_ui_colors(self):
         """테마 변경 시 UI 색상 업데이트"""
+        item_spacing = UIScaleManager.get("thumbnail_item_spacing")
         self.list_view.setStyleSheet(f"""
             QListView {{
                 background-color: {ThemeManager.get_color('bg_primary')};
                 border: none;
                 outline: none;
+                padding: {item_spacing}px;
+                spacing: {item_spacing}px;
             }}
             QListView::item {{
                 border: none;
                 padding: 0px;
             }}
             QListView::item:selected {{
-                background-color: {ThemeManager.get_color('accent')};
                 background-color: rgba(255, 255, 255, 30);
             }}
             QScrollBar:vertical {{
                 border: none;
                 background: {ThemeManager.get_color('bg_primary')};
                 width: 10px;
-                margin: 0px 0px 0px 0px;
+                margin: 0px;
             }}
             QScrollBar::handle:vertical {{
                 background: {ThemeManager.get_color('border')};
@@ -4119,19 +4147,149 @@ class ThumbnailPanel(QWidget):
                 background: {ThemeManager.get_color('accent_hover')};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                border: none;
-                background: none;
                 height: 0px;
-            }}
-            QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {{
                 background: none;
             }}
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
                 background: none;
             }}
         """)
-    
 
+
+class FilmstripPanel(QWidget):
+    """Bottom filmstrip (horizontal thumbnails) reusing ThumbnailModel/Delegate"""
+    thumbnailClicked = Signal(int)
+    thumbnailDoubleClicked = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_app = parent
+        self.model = ThumbnailModel([], self.parent_app.image_loader if self.parent_app else None, self)
+        self.delegate = ThumbnailDelegate(self)
+        
+        # Layout
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
+        
+        # Horizontal thumbnail list
+        self.list_view = DraggableThumbnailView()
+        self.list_view.setModel(self.model)
+        self.list_view.setItemDelegate(self.delegate)
+        self.list_view.setDragEnabled(True)
+        self.list_view.setSelectionMode(QListView.SingleSelection)
+        self.list_view.setDragDropMode(QListView.DragOnly)
+        self.list_view.setDefaultDropAction(Qt.MoveAction)
+        self.list_view.setViewMode(QListView.IconMode)
+        self.list_view.setFlow(QListView.LeftToRight)
+        self.list_view.setWrapping(False)
+        self.list_view.setResizeMode(QListView.Adjust)
+        self.list_view.setSpacing(UIScaleManager.get("thumbnail_item_spacing"))
+        self.list_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # Set prominent height for filmstrip (world-class UI)
+        self.setMinimumHeight(140)
+        self.setMaximumHeight(160)
+        
+        # Ensure filmstrip takes space and is visible
+        from PySide6.QtWidgets import QSizePolicy
+        size_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setSizePolicy(size_policy)
+        
+        # Professional styling with top border separator
+        self.setStyleSheet(f"""
+            FilmstripPanel {{
+                background-color: {ThemeManager.get_color('bg_secondary')};
+                border-top: 2px solid {ThemeManager.get_color('border')};
+            }}
+        """)
+        
+        self.layout.addWidget(self.list_view)
+        
+        # Signals
+        self.list_view.clicked.connect(self._on_clicked)
+        self.list_view.doubleClicked.connect(self._on_double_clicked)
+        
+        # Theme updates
+        ThemeManager.register_theme_change_callback(self.update_ui_colors)
+        self.update_ui_colors()
+    
+    def set_image_files(self, image_files):
+        self.model.set_image_files(image_files)
+    
+    def set_current_index(self, index):
+        if not self.model._image_files or index < 0 or index >= len(self.model._image_files):
+            return
+        self.model.set_current_index(index)
+        QTimer.singleShot(10, lambda: self._scroll_to(index))
+        self.model.preload_thumbnails(index, radius=8)
+    
+    def _scroll_to(self, index):
+        if 0 <= index < self.model.rowCount():
+            mi = self.model.createIndex(index, 0)
+            self.list_view.setCurrentIndex(mi)
+            self.list_view.scrollTo(mi, QListView.PositionAtCenter)
+    
+    def _on_clicked(self, mi):
+        if mi.isValid():
+            self.thumbnailClicked.emit(mi.row())
+    
+    def _on_double_clicked(self, mi):
+        if mi.isValid():
+            self.thumbnailDoubleClicked.emit(mi.row())
+    
+    def update_ui_colors(self):
+        item_spacing = UIScaleManager.get("thumbnail_item_spacing")
+        
+        # Update panel background
+        self.setStyleSheet(f"""
+            FilmstripPanel {{
+                background-color: {ThemeManager.get_color('bg_secondary')};
+                border-top: 2px solid {ThemeManager.get_color('border')};
+            }}
+        """)
+        
+        # Update list view styling
+        self.list_view.setStyleSheet(f"""
+            QListView {{
+                background-color: {ThemeManager.get_color('bg_secondary')};
+                border: none;
+                outline: none;
+                padding: 8px;
+                spacing: {item_spacing}px;
+            }}
+            QListView::item {{ 
+                border: none; 
+                padding: 2px;
+            }}
+            QListView::item:selected {{
+                background-color: transparent;
+                border: 2px solid {ThemeManager.get_color('accent')};
+            }}
+            QScrollBar:horizontal {{
+                border: none;
+                background: {ThemeManager.get_color('bg_primary')};
+                height: 12px;
+                margin: 0px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {ThemeManager.get_color('border')};
+                min-width: 30px; 
+                border-radius: 6px;
+            }}
+            QScrollBar::handle:horizontal:hover {{ 
+                background: {ThemeManager.get_color('accent_hover')}; 
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ 
+                background: none; 
+                width: 0px; 
+                height: 0px; 
+            }}
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ 
+                background: none; 
+            }}
+        """)
 
 
 class FileListDialog(QDialog):
@@ -4946,6 +5104,16 @@ class PxgateApp(QMainWindow):
 
         self._is_resetting = False
         
+        # === AI Analysis Manager 초기화 ===
+        self.analysis_manager = None
+        if ANALYSIS_AVAILABLE:
+            try:
+                self.analysis_manager = ImageAnalysisManager(self)
+                logging.info("AI Analysis features initialized")
+            except Exception as e:
+                logging.error(f"Failed to initialize AI analysis: {e}")
+                self.analysis_manager = None
+        
         # ==================== 여기서부터 UI 관련 코드 ====================
 
         # 다크 테마 적용
@@ -4953,6 +5121,82 @@ class PxgateApp(QMainWindow):
         
         # 제목 표시줄 다크 테마 적용
         apply_dark_title_bar(self)
+        
+        # 상단 툴바 (World-Class UI)
+        self.toolbar = self.addToolBar("Main")
+        self.toolbar.setMovable(False)
+        self.toolbar.setIconSize(QSize(20, 20))  # Larger icons
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        
+        # Professional toolbar styling
+        self.toolbar.setStyleSheet(f"""
+            QToolBar {{
+                background-color: {ThemeManager.get_color('bg_secondary')};
+                border-bottom: 1px solid {ThemeManager.get_color('border')};
+                spacing: 8px;
+                padding: 6px 12px;
+            }}
+            QToolButton {{
+                background-color: transparent;
+                color: {ThemeManager.get_color('text_primary')};
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 11pt;
+                font-weight: 500;
+            }}
+            QToolButton:hover {{
+                background-color: {ThemeManager.get_color('bg_hover')};
+            }}
+            QToolButton:pressed {{
+                background-color: {ThemeManager.get_color('accent')};
+            }}
+            QToolBar::separator {{
+                background-color: {ThemeManager.get_color('border')};
+                width: 1px;
+                margin: 4px 8px;
+            }}
+        """)
+        
+        # Actions with better labels
+        self.action_open = QAction("📁 Open Folder", self)
+        self.action_open.triggered.connect(self.load_jpg_folder)
+        
+        self.action_prev = QAction("◀ Previous", self)
+        self.action_prev.triggered.connect(self.show_previous_image)
+        self.action_prev.setShortcut("Left")
+        
+        self.action_next = QAction("Next ▶", self)
+        self.action_next.triggered.connect(self.show_next_image)
+        self.action_next.setShortcut("Right")
+        
+        self.action_fit = QAction("⬜ Fit", self)
+        self.action_fit.triggered.connect(lambda: self.fit_radio.click() if hasattr(self, 'fit_radio') else None)
+        self.action_fit.setShortcut("F1")
+        
+        self.action_100 = QAction("🔍 100%", self)
+        self.action_100.triggered.connect(lambda: self.zoom_100_radio.click() if hasattr(self, 'zoom_100_radio') else None)
+        self.action_100.setShortcut("F2")
+        
+        self.action_toggle_grid = QAction("⊞ Grid", self)
+        self.action_toggle_grid.triggered.connect(self.toolbar_toggle_grid_mode)
+        self.action_toggle_grid.setShortcut("G")
+        
+        self.action_toggle_thumbs = QAction("🖼 Thumbnails", self)
+        self.action_toggle_thumbs.triggered.connect(self.toggle_thumbnail_panel)
+        self.action_toggle_thumbs.setShortcut("T")
+        
+        # Add actions to toolbar with logical grouping
+        self.toolbar.addAction(self.action_open)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self.action_prev)
+        self.toolbar.addAction(self.action_next)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self.action_fit)
+        self.toolbar.addAction(self.action_100)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self.action_toggle_grid)
+        self.toolbar.addAction(self.action_toggle_thumbs)
         
         # 중앙 위젯 설정
         self.central_widget = QWidget()
@@ -4970,7 +5214,7 @@ class PxgateApp(QMainWindow):
 
         # === 썸네일 패널 생성 ===
         self.thumbnail_panel = ThumbnailPanel(self)
-        self.thumbnail_panel.hide()  # 초기에는 숨김 (Grid Off 모드에서만 표시)
+        # Thumbnail panel visible by default for better UX
 
         # 썸네일 패널 시그널 연결
         self.thumbnail_panel.thumbnailClicked.connect(self.on_thumbnail_clicked)
@@ -5011,14 +5255,19 @@ class PxgateApp(QMainWindow):
         self.image_panel.dragEnterEvent = self.canvas_dragEnterEvent
         self.image_panel.dropEvent = self.canvas_dropEvent
         
-        # 2. 메인 패널 내부에 레이아웃과 스플리터 배치
-        self.view_splitter_layout = QHBoxLayout(self.image_panel)
+        # 2. 메인 패널 내부에 레이아웃과 스플리터 배치 (상: 뷰, 하: 필름스트립)
+        self.image_panel_layout = QVBoxLayout(self.image_panel)
+        self.image_panel_layout.setContentsMargins(0, 0, 0, 0)
+        self.image_panel_layout.setSpacing(0)
+        view_container = QWidget()
+        self.view_splitter_layout = QHBoxLayout(view_container)
         self.view_splitter_layout.setContentsMargins(0, 0, 0, 0)
         self.view_splitter_layout.setSpacing(0)
         self.view_splitter = QSplitter(Qt.Horizontal)
         self.view_splitter.setStyleSheet("QSplitter::handle { background-color: #222222; } QSplitter::handle:hover { background-color: #444444; }")
         self.view_splitter.setHandleWidth(4) # 분할자 핸들 너비
         self.view_splitter_layout.addWidget(self.view_splitter)
+        self.image_panel_layout.addWidget(view_container, 1)
 
         # 3. 패널 A (기존 메인 뷰) 위젯 설정
         self.image_container = QWidget()
@@ -5075,6 +5324,7 @@ class PxgateApp(QMainWindow):
         self.image_container_B_layout = QVBoxLayout(self.image_container_B)
         self.image_container_B_layout.setContentsMargins(0, 0, 0, 0)
         self.image_container_B_layout.addWidget(self.image_label_B)
+
 
         # B 패널 닫기 버튼 추가
         self.close_compare_button = QPushButton("✕", self.scroll_area_B)
@@ -5246,6 +5496,26 @@ class PxgateApp(QMainWindow):
         self.client_selection_button.clicked.connect(self.show_client_selection_dialog)
         self.client_selection_button.setEnabled(False)  # 이미지 로드 전에는 비활성화
         self.control_layout.addWidget(self.client_selection_button)
+        
+        # --- AI Analysis 섹션 ---
+        if ANALYSIS_AVAILABLE and self.analysis_manager:
+            self.control_layout.addSpacing(UIScaleManager.get("control_layout_spacing", 8))
+            
+            self.analyze_button = QPushButton("🤖 " + LanguageManager.translate("이미지 분석"))
+            self.analyze_button.setStyleSheet(ThemeManager.generate_main_button_style())
+            self.analyze_button.clicked.connect(self.start_image_analysis)
+            self.analyze_button.setEnabled(False)  # 이미지 로드 전에는 비활성화
+            self.analyze_button.setToolTip(LanguageManager.translate("이미지 품질, 얼굴, 중복 분석"))
+            self.control_layout.addWidget(self.analyze_button)
+            
+            self.control_layout.addSpacing(UIScaleManager.get("control_layout_spacing", 8))
+            
+            self.duplicates_button = QPushButton("🔍 " + LanguageManager.translate("중복 찾기"))
+            self.duplicates_button.setStyleSheet(ThemeManager.generate_main_button_style())
+            self.duplicates_button.clicked.connect(self.show_duplicates_dialog)
+            self.duplicates_button.setEnabled(False)  # 분석 완료 전에는 비활성화
+            self.duplicates_button.setToolTip(LanguageManager.translate("중복 및 유사 이미지 보기"))
+            self.control_layout.addWidget(self.duplicates_button)
         
         # 구분선 추가
         self.control_layout.addSpacing(UIScaleManager.get("section_spacing", 20))
@@ -5608,10 +5878,23 @@ class PxgateApp(QMainWindow):
         self.update_match_raw_button_state()
         self.update_all_folder_labels_state()
         self.thumbnail_panel.set_image_files(self.image_files)
+        if hasattr(self, 'filmstrip_panel'):
+            self.filmstrip_panel.set_image_files(self.image_files)
         
         # Enable client selection button when images are loaded
         if hasattr(self, 'client_selection_button'):
             self.client_selection_button.setEnabled(True)
+        
+        # Enable AI analysis button when images are loaded
+        if hasattr(self, 'analyze_button'):
+            self.analyze_button.setEnabled(True)
+        
+        # Auto-start AI analysis if enabled (default disabled)
+        if (ANALYSIS_AVAILABLE and self.analysis_manager and 
+            self.analysis_manager.settings.get('auto_analyze_on_load', False) and
+            not self._is_silent_load):
+            # Start analysis after a short delay to let UI settle
+            QTimer.singleShot(1000, self.start_image_analysis)
 
         # --- 뷰 상태 적용 ---
         if self._is_silent_load and hasattr(self, '_pending_view_state') and self._pending_view_state:
@@ -5643,6 +5926,8 @@ class PxgateApp(QMainWindow):
             self._update_view_for_grid_change()
             QTimer.singleShot(0, self.display_current_image)
             self.thumbnail_panel.set_current_index(0)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_current_index(0)
 
         # --- 후처리 ---
         if not self._is_silent_load:
@@ -5917,6 +6202,8 @@ class PxgateApp(QMainWindow):
             
             # 썸네일 패널과 UI 업데이트
             self.thumbnail_panel.set_image_files(self.image_files)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_image_files(self.image_files)
             self.update_thumbnail_current_index()
             self.update_counters()
             self.update_compare_filenames() # B 캔버스 파일명 업데이트
@@ -6192,6 +6479,8 @@ class PxgateApp(QMainWindow):
         if self.grid_mode == "Off":
             self.current_image_index = new_index
             self.thumbnail_panel.set_image_files(self.image_files)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_image_files(self.image_files)
             self.display_current_image()
             self.update_thumbnail_current_index()
         else: # Grid 모드
@@ -6205,6 +6494,8 @@ class PxgateApp(QMainWindow):
                 self.current_grid_index = 0
             
             self.thumbnail_panel.set_image_files(self.image_files)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_image_files(self.image_files)
             self.update_grid_view()
 
         self.update_counters()
@@ -6247,6 +6538,8 @@ class PxgateApp(QMainWindow):
                 pixmap = QPixmap.fromImage(qimage)
                 # 생성된 썸네일을 모델에 전달하여 UI 업데이트
                 self.thumbnail_panel.model.set_thumbnail(file_path, pixmap)
+                if hasattr(self, 'filmstrip_panel') and self.filmstrip_panel:
+                    self.filmstrip_panel.model.set_thumbnail(file_path, pixmap)
         except Exception as e:
             logging.error(f"썸네일 결과 처리 중 오류 ({Path(file_path).name}): {e}")
 
@@ -6266,6 +6559,8 @@ class PxgateApp(QMainWindow):
             
             # 썸네일 패널 현재 인덱스 업데이트 (이 함수는 내부적으로 selectionModel도 처리합니다)
             self.thumbnail_panel.set_current_index(index)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_current_index(index)
 
             # 포커스를 메인 윈도우로 되돌림
             self.setFocus()
@@ -6369,8 +6664,28 @@ class PxgateApp(QMainWindow):
         
     def update_thumbnail_current_index(self):
         """현재 이미지 인덱스가 변경될 때 썸네일 패널 업데이트"""
-        if self.thumbnail_panel.isVisible() and self.current_image_index >= 0:
-            self.thumbnail_panel.set_current_index(self.current_image_index)
+        if self.current_image_index >= 0:
+            if self.thumbnail_panel.isVisible():
+                self.thumbnail_panel.set_current_index(self.current_image_index)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_current_index(self.current_image_index)
+
+    def toolbar_toggle_grid_mode(self):
+        """Toolbar handler: toggle Grid <-> Off using last active grid mode."""
+        try:
+            if self.grid_mode == "Off":
+                target = getattr(self, 'last_active_grid_mode', "2x2") or "2x2"
+                self.grid_mode = target
+            else:
+                # remember current as last active
+                self.last_active_grid_mode = self.grid_mode
+                self.grid_mode = "Off"
+            # Try to reflect radio buttons if present
+            if hasattr(self, 'grid_off_radio') and self.grid_mode == "Off":
+                self.grid_off_radio.setChecked(True)
+            self._update_view_for_grid_change()
+        except Exception as e:
+            logging.error(f"toolbar_toggle_grid_mode error: {e}")
 
 
     def set_window_icon(self):
@@ -9838,8 +10153,7 @@ class PxgateApp(QMainWindow):
             if widget:
                 widget.setParent(None)
         
-        # 썸네일 패널은 항상 보이도록 설정
-        self.thumbnail_panel.show()
+        # 썸네일 패널은 기존 가시성 상태를 유지합니다 (필름스트립이 기본).
         
         # 위젯을 올바른 순서로 다시 추가 (항상 3패널)
         if control_on_right:
@@ -10898,6 +11212,8 @@ class PxgateApp(QMainWindow):
 
             # 썸네일 패널에 파일 목록 설정
             self.thumbnail_panel.set_image_files(self.image_files)
+            if hasattr(self, 'filmstrip_panel'):
+                self.filmstrip_panel.set_image_files(self.image_files)
             
             self.raw_folder = folder_path
             self.is_raw_only_mode = True
@@ -11769,6 +12085,8 @@ class PxgateApp(QMainWindow):
                 self.current_image_index = -1
                 self.display_current_image()
                 self.thumbnail_panel.set_image_files([]) # 썸네일 패널 비우기
+                if hasattr(self, 'filmstrip_panel'):
+                    self.filmstrip_panel.set_image_files([])
                 if self.session_management_popup and self.session_management_popup.isVisible():
                     self.session_management_popup.update_all_button_states()
                 if self.minimap_visible:
@@ -13998,6 +14316,15 @@ class PxgateApp(QMainWindow):
                 self.info_iso_label.setText(iso_str)
             else:
                 self.info_iso_label.setText("▪ -")
+            
+            # AI Analysis 정보 추가
+            if ANALYSIS_AVAILABLE and self.analysis_manager:
+                analysis_result = self.analysis_manager.get_analysis(image_path)
+                if analysis_result and analysis_result.get('analyzed'):
+                    # 품질 분석 정보 추가 (기존 ISO 레이블 아래에 표시)
+                    # 실제로는 별도의 레이블이 필요하지만, 여기서는 로깅만 수행
+                    logging.debug(f"AI Analysis - Quality: {analysis_result['quality_score']:.1f}, "
+                                f"Faces: {analysis_result['face_data'].get('face_count', 0)}")
 
         except Exception as e:
             logging.error(f"EXIF 정보 UI 업데이트 오류: {e}")
@@ -15499,6 +15826,8 @@ class PxgateApp(QMainWindow):
         
         # 모델 구조가 변경되었으므로 썸네일 패널을 리셋합니다.
         self.thumbnail_panel.set_image_files(self.image_files)
+        if hasattr(self, 'filmstrip_panel'):
+            self.filmstrip_panel.set_image_files(self.image_files)
 
         # Grid 모드 복원
         self.grid_mode = mode_before_move
@@ -16550,6 +16879,62 @@ class PxgateApp(QMainWindow):
         else:
             print("패널 위치 변경 없음")
 
+    # ==================== AI Analysis Methods ====================
+    
+    def start_image_analysis(self):
+        """Start analyzing loaded images"""
+        if not self.analysis_manager or not self.image_files:
+            return
+        
+        # Convert Path objects to strings
+        image_paths = [str(path) for path in self.image_files]
+        
+        # Start analysis
+        self.analysis_manager.start_analysis(image_paths, show_progress=True)
+        
+        # Enable duplicates button after analysis starts
+        if hasattr(self, 'duplicates_button'):
+            QTimer.singleShot(2000, lambda: self.duplicates_button.setEnabled(True))
+        
+        logging.info(f"Started analysis of {len(image_paths)} images")
+
+    def show_duplicates_dialog(self):
+        """Show dialog with duplicate images"""
+        if not self.analysis_manager:
+            return
+        
+        self.analysis_manager.show_duplicates_dialog()
+
+    def show_analysis_settings(self):
+        """Show analysis settings dialog"""
+        if not self.analysis_manager:
+            return
+        
+        self.analysis_manager.show_settings_dialog()
+
+    def update_analysis_display(self, result: dict):
+        """Update UI with analysis results (called by analysis manager)"""
+        # Refresh file info if this is the current image
+        current_path = self.get_current_image_path()
+        if current_path == result.get('path'):
+            self.update_file_info_display(current_path)
+
+    def navigate_to_image_by_path(self, image_path: str):
+        """Navigate to a specific image by its path"""
+        try:
+            image_path_obj = Path(image_path)
+            if image_path_obj in self.image_files:
+                index = self.image_files.index(image_path_obj)
+                self.current_image_index = index
+                self.display_image()
+                logging.info(f"Navigated to image: {image_path_obj.name}")
+            else:
+                logging.warning(f"Image not found in current list: {image_path}")
+        except Exception as e:
+            logging.error(f"Error navigating to image: {e}")
+    
+    # ==================== End AI Analysis Methods ====================
+
     def _apply_panel_position(self):
         """현재 self.control_panel_on_right 상태에 따라 패널 위치 및 크기 적용"""
         logging.info(f"_apply_panel_position 호출됨: 오른쪽 배치 = {self.control_panel_on_right}")
@@ -16939,6 +17324,11 @@ def main():
         "지정한 폴더로 사진 복사": "Copy photo to assigned folder",
         "{filename} 복사 완료": "{filename} copied.",
         "이미지 {count}개 복사 완료": "{count} images copied.",
+        # AI Analysis 관련 번역 키
+        "이미지 분석": "Analyze Images",
+        "중복 찾기": "Find Duplicates",
+        "이미지 품질, 얼굴, 중복 분석": "Analyze image quality, faces, and duplicates",
+        "중복 및 유사 이미지 보기": "View duplicate and similar images",
     }
     
     LanguageManager.initialize_translations(translations)
