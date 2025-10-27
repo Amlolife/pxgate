@@ -28,7 +28,7 @@ jobs:
       
       - name: Build Windows executable
         run: |
-          pyinstaller pxgate-build.spec --noconfirm --clean
+          pyinstaller pxgate-final.spec --noconfirm --clean
       
       - name: Create Windows archive
         run: |
@@ -63,7 +63,7 @@ jobs:
       - name: Build macOS Intel app
         run: |
           rm -rf build dist
-          pyinstaller pxgate-build.spec --noconfirm --clean
+          pyinstaller pxgate-final.spec --noconfirm --clean
       
       - name: Create macOS Intel archive
         run: |
@@ -100,7 +100,7 @@ jobs:
       - name: Build macOS ARM app
         run: |
           rm -rf build dist
-          pyinstaller pxgate-build.spec --noconfirm --clean
+          pyinstaller pxgate-final.spec --noconfirm --clean
       
       - name: Create macOS ARM archive
         run: |
