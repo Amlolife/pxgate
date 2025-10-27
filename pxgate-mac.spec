@@ -33,30 +33,32 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
-app = BUNDLE(
+exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name='VibeCulling',
+    name='Pxgate',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     console=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    # icon can be added later when .icns is available
 )
 
 coll = COLLECT(
-    app,
+    exe,
     a.binaries,
     a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='VibeCulling',
+    name='Pxgate',
+)
+
+app = BUNDLE(
+    coll,
+    name='Pxgate.app',
+    icon=None,
+    bundle_identifier=None,
 )
