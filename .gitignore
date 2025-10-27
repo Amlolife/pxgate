@@ -3,8 +3,8 @@
 /dist/
 dist_pyinstaller/
 build_pyinstaller/
-*.spec
-pxgate.spec
+# *.spec files are needed for GitHub Actions builds
+# pxgate.spec and pxgate-mac.spec should be tracked
 
 # Nuitka build output
 dist_nuitka/
