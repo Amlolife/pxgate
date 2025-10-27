@@ -16,8 +16,10 @@ if sys.platform == 'darwin':
     for lib in ['QtCore', 'QtGui', 'QtWidgets']:
         _binaries += collect_dynamic_libs('PySide6', f'Qt/lib/{lib}.framework')
 
-    # Manually collect the required platform plugin
-    _datas += collect_data_files('PySide6', 'Qt/plugins/platforms', destdir='PySide6/Qt/plugins/platforms')
+    # Manually collect the required platform plugin and set the destination
+    collected_platforms = collect_data_files('PySide6', 'Qt/plugins/platforms')
+    for src, dest in collected_platforms:
+        _datas.append((src, f'PySide6/Qt/plugins/platforms/{dest}'))
     
     # Add the qt.conf file
     _datas += [('qt.conf', '.')]
