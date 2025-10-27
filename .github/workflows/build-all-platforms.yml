@@ -62,7 +62,7 @@ jobs:
       
       - name: Build macOS Intel app
         run: |
-          pyinstaller pxgate-mac.spec --target-arch x86_64 --noconfirm --clean
+          pyinstaller pxgate-mac.spec --noconfirm --clean
       
       - name: Create macOS Intel archive
         run: |
@@ -98,7 +98,7 @@ jobs:
       
       - name: Build macOS ARM app
         run: |
-          pyinstaller pxgate-mac.spec --target-arch arm64 --noconfirm --clean
+          pyinstaller pxgate-mac.spec --noconfirm --clean
       
       - name: Create macOS ARM archive
         run: |
