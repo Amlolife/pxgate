@@ -28,7 +28,7 @@ jobs:
       
       - name: Build Windows executable
         run: |
-          pyinstaller pxgate.spec --noconfirm --clean
+          pyinstaller pxgate-build.spec --noconfirm --clean
       
       - name: Create Windows archive
         run: |
@@ -60,16 +60,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
       
-      - name: Verify spec file content (Intel)
-        run: |
-          echo "--- pxgate-mac.spec content ---"
-          cat pxgate-mac.spec
-          echo "-------------------------------"
-
       - name: Build macOS Intel app
         run: |
           rm -rf build dist
-          pyinstaller pxgate-mac.spec --noconfirm --clean
+          pyinstaller pxgate-build.spec --noconfirm --clean
       
       - name: Create macOS Intel archive
         run: |
@@ -103,16 +97,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
       
-      - name: Verify spec file content (ARM)
-        run: |
-          echo "--- pxgate-mac.spec content ---"
-          cat pxgate-mac.spec
-          echo "-------------------------------"
-
       - name: Build macOS ARM app
         run: |
           rm -rf build dist
-          pyinstaller pxgate-mac.spec --noconfirm --clean
+          pyinstaller pxgate-build.spec --noconfirm --clean
       
       - name: Create macOS ARM archive
         run: |
