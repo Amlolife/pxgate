@@ -60,6 +60,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
       
+      - name: Verify spec file content (Intel)
+        run: |
+          echo "--- pxgate-mac.spec content ---"
+          cat pxgate-mac.spec
+          echo "-------------------------------"
+
       - name: Build macOS Intel app
         run: |
           rm -rf build dist
@@ -97,6 +103,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
       
+      - name: Verify spec file content (ARM)
+        run: |
+          echo "--- pxgate-mac.spec content ---"
+          cat pxgate-mac.spec
+          echo "-------------------------------"
+
       - name: Build macOS ARM app
         run: |
           rm -rf build dist
