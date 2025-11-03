@@ -45,7 +45,7 @@ jobs:
           python -c "import PySide6; print(f'✓ PySide6 {PySide6.__version__}')"
           python -c "import rawpy; print('✓ rawpy')"
           python -c "import pillow_heif; print('✓ pillow_heif')"
-          python -c "import Pillow; from PIL import Image; print(f'✓ Pillow {Image.__version__}')"
+          python -c "from PIL import Image; print(f'✓ Pillow {Image.__version__}')"
           python -c "import psutil; print(f'✓ psutil {psutil.__version__}')"
           echo ""
       
