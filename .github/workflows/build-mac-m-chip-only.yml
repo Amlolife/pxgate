@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "=== Building with PyInstaller ==="
           rm -rf build dist
-          pyinstaller pxgate-mac.spec --noconfirm --clean
+          pyinstaller pxgate-mac-onefile.spec --noconfirm --clean
           echo ""
       
       - name: Verify build architecture
