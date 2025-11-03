@@ -81,7 +81,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,  # Disable UPX to avoid issues
     console=False,
 )
 
@@ -90,7 +90,7 @@ coll = COLLECT(
     filtered_binaries,  # Use the filtered list of binaries
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,  # Disable UPX to avoid issues
     upx_exclude=[],
     name='Pxgate',
 )
@@ -99,5 +99,11 @@ app = BUNDLE(
     coll,
     name='Pxgate.app',
     icon=None,
-    bundle_identifier=None,
+    bundle_identifier='com.pxgate.app',
+    info_plist={
+        'CFBundleShortVersionString': '25.08.06',
+        'CFBundleVersion': '25.08.06',
+        'NSHighResolutionCapable': True,
+        'LSMinimumSystemVersion': '11.0',
+    },
 )
