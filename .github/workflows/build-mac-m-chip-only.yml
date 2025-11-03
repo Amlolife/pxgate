@@ -5,6 +5,7 @@ on:
     branches:
       - 'main'
       - 'master'
+      - 'build-fix'  # Also trigger on build-fix branch
     tags:
       - 'v*'
   workflow_dispatch:  # Allows manual trigger from GitHub UI
