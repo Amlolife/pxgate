@@ -1,11 +1,12 @@
-numpy<2.0
-piexif
-psutil
-Pillow
-PySide6>=6.5,<6.6; python_version<'3.13'
-PySide6>=6.8; python_version>='3.13'
-pillow_heif
-rawpy
-exifread
-opencv-python
-imagehash
+# Core dependencies - All have native Apple Silicon (ARM64) support
+numpy<2.0  # ARM64 wheels available, <2.0 for compatibility
+piexif  # Pure Python, architecture-independent
+psutil  # Native ARM64 support
+Pillow>=10.0.0  # Full ARM64 support since v10.0
+PySide6>=6.5,<6.6; python_version<'3.13'  # Qt 6.5+ has ARM64 support
+PySide6>=6.8; python_version>='3.13'  # Qt 6.8+ for Python 3.13+
+pillow_heif  # libheif ARM64 compatible
+rawpy  # LibRaw compiled for ARM64
+exifread  # Pure Python, architecture-independent
+opencv-python  # ARM64 wheels available
+imagehash  # Pure Python, architecture-independent

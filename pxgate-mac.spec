@@ -49,6 +49,9 @@ a = Analysis(
     ],
     noarchive=False,
     optimize=0,
+    # Apple Silicon (M-chip) compatibility
+    # PyInstaller will automatically detect the architecture
+    # For universal binary, build separately on Intel and ARM then use lipo
 )
 
 # Manually filter out problematic Qt frameworks from binaries

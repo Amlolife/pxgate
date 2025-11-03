@@ -16,7 +16,7 @@ import logging.handlers
 from functools import partial
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from multiprocessing import Process, Queue, cpu_count, freeze_support
+from multiprocessing import Process, Queue, cpu_count, freeze_support, current_process
 
 from pathlib import Path
 import platform
@@ -5753,7 +5753,7 @@ class PxgateApp(QMainWindow):
         
         # 실패 신호를 받으면 메시지 박스를 띄우는 람다 함수 연결
         self.copy_worker.copyFailed.connect(
-            lambda msg: self.show_themed_message_box(QMessageBox.Warning, LanguageManager.translate("복사 오류"), msg)
+            lambda msg: self.show_themed_message_box(QMessageBox.Warning, "Copy Error", msg)
         )
 
         # 스레드가 시작될 때 워커의 처리 루프를 시작하도록 연결
@@ -5841,7 +5841,7 @@ class PxgateApp(QMainWindow):
             self.loading_progress_dialog.close()
             self.loading_progress_dialog = None
         
-        self.show_themed_message_box(QMessageBox.Warning, title, message)
+        self.show_themed_message_box(QMessageBox.Warning, "Loading Error", message)
         self._reset_workspace_after_load_fail()
 
     def on_loading_finished(self, image_files, raw_files, jpg_folder, raw_folder, final_mode):
@@ -5914,8 +5914,8 @@ class PxgateApp(QMainWindow):
                     self.show_themed_message_box(QMessageBox.Information, title, message)
                 else:
                     title = LanguageManager.translate("정보")
-                    message = LanguageManager.translate("선택한 RAW 폴더에서 매칭되는 파일을 찾을 수 없습니다.")
-                    self.show_themed_message_box(QMessageBox.Information, title, message)
+                    message = "Could not find any matching files in the selected RAW folder."
+                    self.show_themed_message_box(QMessageBox.Information, "Information", message)
 
             self.current_image_index = 0
             self.grid_mode = "Off"
@@ -5934,8 +5934,8 @@ class PxgateApp(QMainWindow):
             self.save_state()
         elif hasattr(self, '_show_session_load_success_popup') and self._show_session_load_success_popup:
             title = LanguageManager.translate("불러오기 완료")
-            message = LanguageManager.translate("세션을 불러왔습니다.")
-            self.show_themed_message_box(QMessageBox.Information, title, message)
+            message = "Session loaded successfully."
+            self.show_themed_message_box(QMessageBox.Information, "Loading Complete", message)
             self._show_session_load_success_popup = False
 
         self._is_silent_load = False
@@ -5959,11 +5959,11 @@ class PxgateApp(QMainWindow):
     def reset_application_settings(self):
         """사용자에게 확인을 받은 후, 설정 파일을 삭제하고 앱을 종료합니다."""
         title = LanguageManager.translate("초기화 확인")
-        message = LanguageManager.translate("모든 설정을 초기화하고 프로그램을 종료하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")
+        message = "Are you sure you want to reset all settings and exit the program?\nThis action cannot be undone."
         
         reply = self.show_themed_message_box(
             QMessageBox.Question,
-            title,
+            "Confirm Reset",
             message,
             QMessageBox.Yes | QMessageBox.Cancel,
             QMessageBox.Cancel
@@ -5981,8 +5981,8 @@ class PxgateApp(QMainWindow):
             except Exception as e:
                 logging.error(f"설정 파일 삭제 실패: {e}")
                 self.show_themed_message_box(
-                    QMessageBox.Critical, LanguageManager.translate("오류"),
-                    f"설정 파일 삭제에 실패했습니다:\n{e}"
+                    QMessageBox.Critical, "Error",
+                    f"Failed to delete the settings file:\n{e}"
                 )
                 return
 
@@ -6151,7 +6151,7 @@ class PxgateApp(QMainWindow):
         # --- 아래는 A와 B가 다른 이미지일 경우의 기존 로직 ---
         target_folder = self.target_folders[folder_index]
         if not target_folder or not os.path.isdir(target_folder):
-            self.show_themed_message_box(QMessageBox.Warning, "경고", "유효하지 않은 폴더입니다.")
+            self.show_themed_message_box(QMessageBox.Warning, "Invalid Folder", "The destination folder is not valid. Please select a valid folder.")
             return
 
         moved_jpg_path = None
@@ -6161,7 +6161,7 @@ class PxgateApp(QMainWindow):
         try:
             moved_jpg_path = self.move_file(image_to_move_path, target_folder)
             if moved_jpg_path is None:
-                self.show_themed_message_box(QMessageBox.Critical, "에러", f"파일 이동 중 오류 발생: {image_to_move_path.name}")
+                self.show_themed_message_box(QMessageBox.Critical, "Error Moving File", f"Could not move the file: {image_to_move_path.name}. It may be in use by another program.")
                 return
 
             raw_moved_successfully = True
@@ -6174,7 +6174,7 @@ class PxgateApp(QMainWindow):
                         del self.raw_files[base_name]
                     else:
                         raw_moved_successfully = False
-                        self.show_themed_message_box(QMessageBox.Warning, "경고", f"RAW 파일 이동 실패: {raw_path_before_move.name}")
+                        self.show_themed_message_box(QMessageBox.Warning, "RAW File Move Failed", f"Failed to move the associated RAW file: {raw_path_before_move.name}. It might be locked or missing.")
 
             if moved_jpg_path and image_to_move_index != -1:
                 history_entry = {
@@ -6209,8 +6209,8 @@ class PxgateApp(QMainWindow):
             self.update_compare_filenames() # B 캔버스 파일명 업데이트
 
         except Exception as e:
-            logging.error(f"B 패널 이미지 이동 중 예외 발생: {e}")
-            self.show_themed_message_box(QMessageBox.Critical, "에러", f"파일 이동 중 오류 발생: {str(e)}")
+            logging.error(f"An unexpected error occurred while moving an image from panel B: {e}")
+            self.show_themed_message_box(QMessageBox.Critical, "Error", f"An error occurred while moving the file: {str(e)}")
 
 
     def show_context_menu_for_B(self, pos):
@@ -7093,7 +7093,7 @@ class PxgateApp(QMainWindow):
         
         unique_raw_files = list(set(temp_raw_file_list))
         if not unique_raw_files:
-            self.show_themed_message_box(QMessageBox.Warning, LanguageManager.translate("경고"), LanguageManager.translate("선택한 폴더에 RAW 파일이 없습니다."))
+            self.show_themed_message_box(QMessageBox.Warning, "No RAW Files Found", "The selected folder does not contain any RAW image files.")
             return None, None
 
         # [빠른 작업] 첫 파일 분석 및 사용자 선택 다이얼로그
@@ -7482,8 +7482,8 @@ class PxgateApp(QMainWindow):
             if self.image_files:
                 reply = self.show_themed_message_box(
                     QMessageBox.Question,
-                    LanguageManager.translate("새 폴더 불러오기"),
-                    LanguageManager.translate("현재 진행 중인 작업을 종료하고 새로운 폴더를 불러오시겠습니까?"),
+                    "Load New Folder?",
+                    "This will end your current session. Do you want to load a new folder?",
                     QMessageBox.Yes | QMessageBox.Cancel,
                     QMessageBox.Cancel
                 )
@@ -7530,7 +7530,7 @@ class PxgateApp(QMainWindow):
                 return True
             
             else:
-                self.show_themed_message_box(QMessageBox.Warning, LanguageManager.translate("경고"), LanguageManager.translate("선택한 폴더에 지원하는 파일이 없습니다."))
+                self.show_themed_message_box(QMessageBox.Warning, "No Supported Files", "The selected folder does not contain any supported image files.")
                 return False
 
         except Exception as e:
@@ -7755,12 +7755,12 @@ class PxgateApp(QMainWindow):
         if not session_name:
             logging.warning("세션 이름 없이 저장을 시도했습니다.")
             # 사용자에게 알림 (선택 사항)
-            self.show_themed_message_box(QMessageBox.Warning, LanguageManager.translate("저장 오류"), LanguageManager.translate("세션 이름을 입력해야 합니다."))
+            self.show_themed_message_box(QMessageBox.Warning, "Save Error", "You must enter a name for the session.")
             return False
 
         if len(self.saved_sessions) >= 20:
             logging.warning("최대 저장 가능한 세션 개수(20개)에 도달했습니다.")
-            self.show_themed_message_box(QMessageBox.Warning, LanguageManager.translate("저장 한도 초과"), LanguageManager.translate("최대 20개의 세션만 저장할 수 있습니다. 기존 세션을 삭제 후 다시 시도해주세요."))
+            self.show_themed_message_box(QMessageBox.Warning, "Save Limit Reached", "You can only save up to 20 sessions. Please delete an existing session before saving a new one.")
             return False
 
         current_state_data = self._capture_current_session_state()
@@ -7915,11 +7915,10 @@ class PxgateApp(QMainWindow):
                 current_path_to_display = str(self.image_files[grid_idx])
 
         if current_path_to_display == failed_file_path:
-            # 사용자에게 알림 (기존 show_compatibility_message 사용 또는 새 메시지)
-            self.show_themed_message_box( # 기존 show_compatibility_message 대신 직접 호출
+            self.show_themed_message_box(
                 QMessageBox.Warning,
-                LanguageManager.translate("호환성 문제"),
-                LanguageManager.translate("RAW 디코딩 실패. 미리보기를 대신 사용합니다.")
+                "Compatibility Issue",
+                "Failed to decode RAW file. A preview will be used instead."
             )
 
             # 해당 파일에 대해 강제로 "preview" 방식으로 전환하고 이미지 다시 로드 시도
@@ -7968,13 +7967,18 @@ class PxgateApp(QMainWindow):
                 creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
                 process = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, creationflags=creationflags)
                 if process.returncode == 0 and process.stdout:
-                    exif_data_list = json.loads(process.stdout)
-                    if exif_data_list:
-                        exif_data = exif_data_list[0]
-                        make = exif_data.get("Make")
-                        model = exif_data.get("Model")
-                        if make and model: return f"{make.strip()} {model.strip()}"
-                        if model: return model.strip()
+                    try:
+                        exif_data_list = json.loads(process.stdout)
+                        if exif_data_list:
+                            exif_data = exif_data_list[0]
+                            make = exif_data.get("Make")
+                            model = exif_data.get("Model")
+                            if make and model: return f"{make.strip()} {model.strip()}"
+                            if model: return model.strip()
+                    except json.JSONDecodeError:
+                        logging.error(f"Exiftool JSON parsing failed ({Path(file_path_str).name}). Response: {process.stdout}")
+                else:
+                    logging.error(f"Exiftool execution failed ({Path(file_path_str).name}). Code: {process.returncode}, Stderr: {process.stderr.strip()}, Stdout: {process.stdout.strip()}")
         except Exception as e:
             logging.error(f"get_camera_model_from_exif_or_path에서 오류 ({Path(file_path_str).name}): {e}")
         return LanguageManager.translate("알 수 없는 카메라")
@@ -8002,8 +8006,8 @@ class PxgateApp(QMainWindow):
             """모든 카메라별 RAW 처리 설정을 초기화하고 메인 상태 파일에 즉시 저장합니다."""
             reply = self.show_themed_message_box(
                 QMessageBox.Question,
-                LanguageManager.translate("초기화"),
-                LanguageManager.translate("저장된 모든 카메라 모델의 RAW 파일 처리 방식을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다."),
+                "Reset Settings?",
+                "Are you sure you want to reset the RAW processing method for all saved camera models? This action cannot be undone.",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -12055,7 +12059,7 @@ class PxgateApp(QMainWindow):
                         del self.raw_files[base_name]
                     else:
                         raw_moved_successfully = False
-                        self.show_themed_message_box(QMessageBox.Warning, "경고", f"RAW 파일 이동 실패: {raw_path_before_move.name}")
+                        self.show_themed_message_box(QMessageBox.Warning, "RAW File Move Failed", f"Failed to move the associated RAW file: {raw_path_before_move.name}. It might be locked or missing.")
 
             # 모델의 removeItem을 호출하여 부드럽게 제거합니다.
             self.thumbnail_panel.model.removeItem(current_index)
@@ -12147,6 +12151,9 @@ class PxgateApp(QMainWindow):
             except Exception as e:
                 logging.error(f"파일 이동 실패: {source_path} -> {target_path}, 오류: {e}")
                 return None # 이동 실패 시 None 반환
+
+        logging.error(f"파일 이동 실패: {source_path}가 계속 사용 중입니다. (20회 재시도 실패)")
+        return None # 모든 재시도 실패 후 None 반환
 
         # 대상 경로 생성
         target_path = target_dir / source_path.name
@@ -17004,6 +17011,15 @@ def get_app_data_dir():
 def main():
     # PyInstaller로 패키징된 실행 파일을 위한 멀티프로세싱 지원 추가
     freeze_support()
+    
+    # macOS (특히 Apple Silicon M-chip)에서 multiprocessing 안정성을 위한 설정
+    # 'spawn' 방식은 macOS에서 기본값이지만 명시적으로 설정하여 일관성 보장
+    if sys.platform == 'darwin':
+        try:
+            import multiprocessing
+            multiprocessing.set_start_method('spawn', force=False)  # 이미 설정되어 있으면 무시
+        except RuntimeError:
+            pass  # 이미 설정된 경우 무시
 
     try:
         pillow_heif.register_heif_opener()
@@ -17012,39 +17028,94 @@ def main():
         logging.error(f"HEIF/HEIC 플러그인 등록 실패: {e}")
 
     # 크로스플랫폼 단일 인스턴스 체크 시작
+    # 중요: 멀티프로세싱 자식 프로세스는 lock 체크를 건너뛰어야 함
     lock_file_path = None
     lock_file_handle = None
-
-    try:
-        # 1. 플랫폼에 맞는 안전한 앱 데이터 디렉토리 경로 가져오기
-        app_data_dir = get_app_data_dir()
-
-        # 2. 잠금 파일 경로 설정
-        lock_file_path = app_data_dir / "pxgate.lock"
-        logging.info(f"잠금 파일 위치: {lock_file_path}")
-
-        # 3. 플랫폼별 잠금 로직 (이 부분은 기존과 동일)
-        if sys.platform == 'win32':
-            # Windows: msvcrt 사용
-            import msvcrt
-            lock_file_handle = open(str(lock_file_path), 'w')
-            msvcrt.locking(lock_file_handle.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            # macOS & Linux: fcntl 사용
-            import fcntl
-            lock_file_handle = open(str(lock_file_path), 'w')
-            fcntl.flock(lock_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-    except (IOError, ImportError) as e:
-        # 다른 인스턴스가 이미 잠금을 설정했거나 라이브러리 로드 실패
-        logging.warning(f"앱이 이미 실행 중이거나 잠금을 획득할 수 없습니다: {e}")
+    
+    # 현재 프로세스가 메인 프로세스인지 확인
+    is_main_process = multiprocessing.current_process().name == 'MainProcess'
+    
+    if is_main_process:
         try:
-            temp_app = QApplication.instance() or QApplication(sys.argv)
-            QMessageBox.warning(None, "Pxgate", "Pxgate is already running.")
-        except Exception as msg_e:
-            logging.error(f"중복 실행 경고창 표시 실패: {msg_e}")
-        sys.exit(1)
-        # 크로스플랫폼 단일 인스턴스 체크 끝
+            # 1. 플랫폼에 맞는 안전한 앱 데이터 디렉토리 경로 가져오기
+            app_data_dir = get_app_data_dir()
+
+            # 2. 잠금 파일 경로 설정
+            lock_file_path = app_data_dir / "pxgate.lock"
+            logging.info(f"Lock file path: {lock_file_path}")
+
+            # 3. 플랫폼별 잠금 로직
+            if sys.platform == 'win32':
+                # Windows: msvcrt 사용
+                import msvcrt
+                lock_file_handle = open(str(lock_file_path), 'w')
+                msvcrt.locking(lock_file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                # macOS & Linux: fcntl 사용
+                import fcntl
+                lock_file_handle = open(str(lock_file_path), 'w')
+                fcntl.flock(lock_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                # 현재 프로세스 PID를 lock 파일에 기록
+                lock_file_handle.write(str(os.getpid()))
+                lock_file_handle.flush()
+
+        except (IOError, OSError) as e:
+            # 잠금 획득 실패 - 다른 인스턴스가 실행 중이거나 stale lock일 수 있음
+            is_stale_lock = False
+            
+            if sys.platform != 'win32' and lock_file_path and lock_file_path.exists():
+                # macOS/Linux: lock 파일에서 PID를 읽어 프로세스가 살아있는지 확인
+                try:
+                    with open(str(lock_file_path), 'r') as f:
+                        old_pid = f.read().strip()
+                        if old_pid.isdigit():
+                            old_pid = int(old_pid)
+                            # 프로세스가 존재하는지 확인
+                            try:
+                                os.kill(old_pid, 0)  # 시그널 0은 프로세스 존재 여부만 확인
+                                # 프로세스가 존재함 - 실제로 실행 중
+                                logging.warning(f"Pxgate is already running (PID: {old_pid})")
+                            except OSError:
+                                # 프로세스가 존재하지 않음 - stale lock
+                                is_stale_lock = True
+                                logging.info(f"Stale lock detected (old PID: {old_pid}), removing...")
+                except Exception as read_err:
+                    logging.warning(f"Could not read lock file PID: {read_err}")
+            
+            # stale lock이면 제거하고 재시도
+            if is_stale_lock:
+                try:
+                    lock_file_path.unlink()
+                    logging.info("Stale lock file removed, retrying...")
+                    # 재시도
+                    import fcntl
+                    lock_file_handle = open(str(lock_file_path), 'w')
+                    fcntl.flock(lock_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    lock_file_handle.write(str(os.getpid()))
+                    lock_file_handle.flush()
+                    logging.info("Lock acquired successfully after removing stale lock")
+                except Exception as retry_err:
+                    logging.error(f"Failed to acquire lock after removing stale lock: {retry_err}")
+                    try:
+                        temp_app = QApplication.instance() or QApplication(sys.argv)
+                        QMessageBox.warning(None, "Pxgate", "Pxgate is already running.")
+                    except Exception as msg_e:
+                        logging.error(f"중복 실행 경고창 표시 실패: {msg_e}")
+                    sys.exit(1)
+            else:
+                # 실제로 다른 인스턴스가 실행 중
+                logging.warning(f"App already running or cannot acquire lock: {e}")
+                try:
+                    temp_app = QApplication.instance() or QApplication(sys.argv)
+                    QMessageBox.warning(None, "Pxgate", "Pxgate is already running.")
+                except Exception as msg_e:
+                    logging.error(f"중복 실행 경고창 표시 실패: {msg_e}")
+                sys.exit(1)
+        except ImportError as e:
+            # 라이브러리 로드 실패
+            logging.error(f"Failed to import locking library: {e}")
+            sys.exit(1)
+    # 크로스플랫폼 단일 인스턴스 체크 끝
 
     # 로그 레벨 설정 (이후 코드는 기존과 동일)
     is_dev_mode = getattr(sys, 'frozen', False) is False
@@ -17057,85 +17128,79 @@ def main():
 
     # 번역 데이터 초기화
     translations = {
-        "이미지 불러오기": "Load Images",
-        "RAW 불러오기": "Load RAW",
+        "파일": "File",
+        "보기": "View",
+        "도구": "Tools",
+        "도움말": "Help",
+        "폴더 열기": "Open Folder",
+        "세션 저장": "Save Session",
+        "세션 불러오기": "Load Session",
+        "세션 관리": "Manage Sessions",
+        "종료": "Exit",
+        "전체화면": "Fullscreen",
+        "격자 뷰": "Grid View",
+        "필름 스트립": "Filmstrip",
+        "비교 모드": "Compare Mode",
+        "확대/축소": "Zoom",
+        "언어 설정": "Language Settings",
+        "테마 설정": "Theme Settings",
+        "단축키 정보": "Shortcut Info",
+        "정보": "About",
         "폴더 경로": "Folder Path",
-        "JPG - RAW 연결": "Link JPG - RAW",
-        "JPG + RAW 이동": "Move JPG + RAW",
-        "폴더 선택": "Select Folder",
-        "미니맵": "Minimap",
-        "환산": "Eq. 35mm",
-        "테마": "Theme",
-        "설정 및 정보": "Settings and Info",
-        "정보": "Info",
-        "이미지 파일이 있는 폴더 선택": "Select Image Folder",
+        "불러오기": "Load",
+        "선택": "Select",
+        "전체 선택": "Select All",
+        "선택 해제": "Deselect All",
+        "선택 반전": "Invert Selection",
+        "필터": "Filter",
+        "등급": "Rating",
+        "색상": "Color",
+        "회전": "Rotate",
+        "삭제": "Delete",
+        "실행": "Run",
+        "분석": "Analyze",
+        "설정": "Settings",
+        "복사": "Copy",
+        "이동": "Move",
+        "작업": "Action",
+        "모든 이미지": "All Images",
+        "선택된 이미지": "Selected Images",
+        "필터된 이미지": "Filtered Images",
         "경고": "Warning",
-        "선택한 폴더에 JPG 파일이 없습니다.": "No JPG files found in the selected folder.",
-        "선택한 폴더에 RAW 파일이 없습니다.": "No RAW files found in the selected folder.",
-        "표시할 이미지가 없습니다": "No image to display.",
-        "이미지 로드 실패": "Failed to load image",
-        "이미지 표시 중 오류 발생": "Error displaying image.",
-        "먼저 JPG 파일을 불러와야 합니다.": "Load JPG files first.",
-        "RAW 파일이 있는 폴더 선택": "Select RAW Folder",
-        "선택한 RAW 폴더에서 매칭되는 파일을 찾을 수 없습니다.": "No matching files found in the selected RAW folder.",
-        "RAW 파일 매칭 결과": "RAW File Matching Results",
-        "RAW 파일이 매칭되었습니다.\n{count} / {total}": "RAW files matched.\n{count} / {total}",
-        "RAW 폴더를 선택하세요": "Select RAW folder",
-        "폴더를 선택하세요": "Select folder",
+        "오류": "Error",
+        "성공": "Success",
         "완료": "Complete",
+        "취소": "Cancel",
+        "확인": "OK",
+        "적용": "Apply",
+        "재설정": "Reset",
+        "영어": "English",
+        "한국어": "Korean",
+        "밝은 테마": "Light Theme",
+        "어두운 테마": "Dark Theme",
+        "시스템 테마": "System Theme",
+        "언어 변경": "Language Change",
+        "프로그램을 다시 시작해야 변경사항이 적용됩니다.": "You must restart the program for the changes to take effect.",
+        "테마 변경": "Theme Change",
+        "테마가 변경되었습니다.": "The theme has been changed.",
+        "단축키": "Shortcuts",
+        "기능": "Function",
+        "파일 불러오기": "Load Files",
+        "RAW 파일 불러오기": "Load RAW Files",
+        "RAW+JPG 모드": "RAW+JPG Mode",
+        "JPG만 보기": "JPG Only Mode",
+        "RAW만 보기": "RAW Only Mode",
         "모든 이미지가 분류되었습니다.": "All images have been sorted.",
         "에러": "Error",
-        "오류": "Error",
-        "파일 이동 중 오류 발생": "Error moving file.",
+        "파일 이동 중 오류 발생": "Error moving file. The file may be locked by another program or you may not have write permissions.",
         "프로그램 초기화": "Reset App",
-        "모든 설정과 로드된 파일을 초기화하시겠습니까?": "Reset all settings and loaded files?",
+        "모든 설정과 로드된 파일을 초기화하시겠습니까?": "Are you sure you want to reset all settings and loaded files? This action cannot be undone.",
         "초기화 완료": "Reset Complete",
-        "프로그램이 초기 상태로 복원되었습니다.": "App restored to initial state.",
-        "상태 로드 오류": "State Load Error",
-        "저장된 상태 파일을 읽는 중 오류가 발생했습니다. 기본 설정으로 시작합니다.": "Error reading saved state file. Starting with default settings.",
-        "상태를 불러오는 중 오류가 발생했습니다": "Error loading state.",
-        "사진 목록": "Photo List",
-        "선택된 파일 없음": "No file selected.",
-        "파일 경로 없음": "File path not found.",
-        "미리보기 로드 실패": "Failed to load preview.",
-        "선택한 파일을 현재 목록에서 찾을 수 없습니다.\n목록이 변경되었을 수 있습니다.": "Selected file not found in the current list.\nThe list may have been updated.",
-        "이미지 이동 중 오류가 발생했습니다": "Error moving image.",
-        "내부 오류로 인해 이미지로 이동할 수 없습니다": "Cannot navigate to image due to internal error.",
-        "언어": "Language",
-        "날짜 형식": "Date Format",
-        "실행 취소 중 오류 발생": "Error during Undo operation.",
-        "다시 실행 중 오류 발생": "Error during Redo operation.",
-        "초기 설정": "Initial Setup",
-        "기본 설정을 선택해주세요.": "Please select your preferences before starting.",
-        "확인": "Confirm",
-        "컨트롤 패널": "Control Panel",
-        "좌측": "Left",
-        "우측": "Right",
-        "닫기": "Close",
-        "단축키 확인": "View Shortcuts",
-        "자유롭게 사용, 수정, 배포할 수 있는 오픈소스 소프트웨어입니다.": "Free and open-source software that can be freely used, modified, and distributed.",
-        "AGPL-3.0 라이선스 조건에 따라 소스 코드 공개 의무가 있습니다.": "Source code disclosure is required under AGPL-3.0 license terms.",
-        "이 프로그램이 마음에 드신다면, 커피 한 잔으로 응원해 주세요.": "If you truly enjoy this app, consider supporting it with a cup of coffee!",
-        "QR 코드": "QR Code",
-        "후원 QR 코드": "Donation QR Code",
-        "네이버페이": "NaverPay",
-        "카카오페이": "KakaoPay",
-        "피드백 및 업데이트 확인:": "Feedback & Updates:",
-        "이미지 로드 중...": "Loading image...",
-        "파일명": "Filename",
-        "저장된 모든 카메라 모델의 RAW 파일 처리 방식을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.": "Are you sure you want to reset the RAW file processing method for all saved camera models? This action cannot be undone.",
-        "모든 카메라의 RAW 처리 방식 설정이 초기화되었습니다.": "RAW processing settings for all cameras have been reset.",
+        "프로그램 설정이 초기화되었습니다.": "Program settings have been reset.",
         "알 수 없는 카메라": "Unknown Camera",
         "정보 없음": "N/A",
         "RAW 파일 처리 방식 선택": "Select RAW Processing Method",
         "{camera_model_placeholder}의 RAW 처리 방식에 대해 다시 묻지 않습니다.": "Don't ask again for {camera_model_placeholder} RAW processing method.",
-        "{model_name_placeholder}의 원본 이미지 해상도는 <b>{orig_res_placeholder}</b>입니다.<br>{model_name_placeholder}의 RAW 파일에 포함된 미리보기(프리뷰) 이미지의 해상도는 <b>{prev_res_placeholder}</b>입니다.<br>미리보기를 통해 이미지를 보시겠습니까, RAW 파일을 디코딩해서 보시겠습니까?":
-            "The original image resolution for {model_name_placeholder} is <b>{orig_res_placeholder}</b>.<br>"
-            "The embedded preview image resolution in the RAW file for {model_name_placeholder} is <b>{prev_res_placeholder}</b>.<br>"
-            "Would you like to view images using the preview or by decoding the RAW file?",
-        "미리보기 이미지 사용 (미리보기의 해상도가 충분하거나 빠른 작업 속도가 중요한 경우.)": "Use Preview Image (if preview resolution is sufficient for you or speed is important.)",
-        "RAW 디코딩 (느림. 일부 카메라 호환성 문제 있음.\n미리보기의 해상도가 너무 작거나 원본 해상도가 반드시 필요한 경우에만 사용 권장.)": 
-            "Decode RAW File (Slower. Compatibility issues with some cameras.\nRecommended only if preview resolution is too low or original resolution is essential.)",
         "호환성 문제로 {model_name_placeholder}의 RAW 파일을 디코딩 할 수 없습니다.<br>RAW 파일에 포함된 <b>{prev_res_placeholder}</b>의 미리보기 이미지를 사용하겠습니다.<br>({model_name_placeholder}의 원본 이미지 해상도는 <b>{orig_res_placeholder}</b>입니다.)":
             "Due to compatibility issues, RAW files from {model_name_placeholder} cannot be decoded.<br>"
             "The embedded preview image with resolution <b>{prev_res_placeholder}</b> will be used.<br>"
